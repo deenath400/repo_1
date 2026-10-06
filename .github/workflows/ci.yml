@@ -1,0 +1,12 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  ci:
+    if: github.repository == 'deenath400/repo_1'
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "internal CI ran"

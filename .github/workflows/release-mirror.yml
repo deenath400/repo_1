@@ -1,0 +1,48 @@
+name: release-mirror
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+concurrency:
+  group: release-mirror
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  mirror:
+    if: github.repository == 'deenath400/repo_1'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure SSH deploy key
+        env:
+          CLIENT_DEPLOY_KEY: ${{ secrets.CLIENT_DEPLOY_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$CLIENT_DEPLOY_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+
+      - name: Push release branch and tag to client repo
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          git remote add client git@github.com:deenath400/repo_2.git
+          LINE="release/$(echo "$TAG" | sed -E 's/^v([0-9]+)\.([0-9]+)\..*$/\1.\2/')"
+          SHA=$(git rev-parse "${TAG}^{commit}")
+          git push client "${SHA}:refs/heads/${LINE}"
+          git push client "refs/tags/${TAG}"
+          {
+            echo "### Release mirror"
+            echo "- Tag: \`${TAG}\`"
+            echo "- SHA: \`${SHA}\`"
+            echo "- Branch: \`${LINE}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
